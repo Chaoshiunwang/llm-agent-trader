@@ -45,6 +45,10 @@ flowchart TD
 
 ## Quick Start
 
+### Prerequisites
+- **macOS/Linux**: Native support for `make` commands
+- **Windows**: May require additional setup (WSL, Git Bash, or make utility installation)
+
 ### Install Dependencies
 
 ```bash
@@ -73,6 +77,9 @@ GOOGLE_API_KEY=your_key
 make run
 ```
 
+**🎉 Success!** After setup, open your browser and navigate to:
+**http://localhost:3000** to access the web application
+
 ### Other Commands
 ```bash
 make stop     # Stop all services
@@ -80,3 +87,9 @@ make test     # Run tests
 make clean    # Clean cache files
 make format   # Format code
 ```
+
+### Windows Users
+If you encounter issues with `make` commands on Windows, consider:
+- **WSL (Windows Subsystem for Linux)**: Recommended approach
+- **Git Bash**: Included with Git for Windows
+- **Make for Windows**: Install GNU Make utility
