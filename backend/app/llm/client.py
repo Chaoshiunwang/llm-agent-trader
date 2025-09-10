@@ -6,42 +6,47 @@ import os
 from typing import Literal, Optional, Union
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import AzureChatOpenAI
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
 from app.config import settings
 
 
-def _detect_available_provider() -> Literal["azure", "gemini"]:
+def _detect_available_provider() -> Literal["azure", "gemini", "openai"]:
     """
     Auto-detect which LLM provider to use based on available API keys in .env
 
     Returns:
         "gemini" if only GOOGLE_API_KEY is available and uncommented
+        "openai" if only OPENAI_API_KEY is available and uncommented
         "azure" if AZURE_OPENAI_API_KEY is available and uncommented
-        Prioritizes Azure when both are available
+        Prioritizes Azure > OpenAI > Gemini when multiple are available
         Defaults to "azure" for backward compatibility
     """
-    # Read directly from environment variables (not from settings)
-    # This allows users to comment out keys in .env to disable providers
     google_api_key = os.getenv("GOOGLE_API_KEY")
     azure_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    openai_api_key = os.getenv("OPENAI_API_KEY")
 
-    # Check if keys are properly set and not placeholder values
     azure_available = (
         azure_api_key
         and azure_api_key.strip()
         and azure_api_key not in ["your_azure_api_key_here", "", "none", "null"]
     )
-
+    openai_available = (
+        openai_api_key
+        and openai_api_key.strip()
+        and openai_api_key not in ["your_openai_api_key_here", "", "none", "null"]
+    )
     gemini_available = (
         google_api_key
         and google_api_key.strip()
         and google_api_key not in ["your_google_api_key_here", "", "none", "null"]
     )
 
-    # Priority logic: Azure first (for backward compatibility), then Gemini
+    # Priority logic: Azure > OpenAI > Gemini
     if azure_available:
         return "azure"
+    elif openai_available:
+        return "openai"
     elif gemini_available:
         return "gemini"
     else:
@@ -50,25 +55,24 @@ def _detect_available_provider() -> Literal["azure", "gemini"]:
 
 
 def get_llm_client(
-    provider: Optional[Literal["azure", "gemini"]] = None,
+    provider: Optional[Literal["azure", "gemini", "openai"]] = None,
     temperature: float = 0.1,
     max_tokens: int = 4000,
     **kwargs,
-) -> Union[AzureChatOpenAI, ChatGoogleGenerativeAI]:
+) -> Union[AzureChatOpenAI, ChatGoogleGenerativeAI, ChatOpenAI]:
     """
     Get unified LLM client with automatic provider detection
 
     Args:
-        provider: LLM provider - "azure" for Azure OpenAI or "gemini" for Google Gemini
+        provider: LLM provider - "azure" for Azure OpenAI, "openai" for OpenAI, "gemini" for Google Gemini
                  If None, auto-detects based on available API keys in .env
         temperature: Temperature parameter
         max_tokens: Maximum number of tokens
         **kwargs: Other provider-specific parameters
 
     Returns:
-        LLM client instance (AzureChatOpenAI or ChatGoogleGenerativeAI)
+        LLM client instance (AzureChatOpenAI, ChatOpenAI, or ChatGoogleGenerativeAI)
     """
-    # Auto-detect provider if not specified
     if provider is None:
         provider = _detect_available_provider()
 
@@ -78,6 +82,14 @@ def get_llm_client(
             temperature=temperature,
             max_output_tokens=max_tokens,
             google_api_key=os.getenv("GOOGLE_API_KEY"),
+            **kwargs,
+        )
+    elif provider == "openai":
+        return ChatOpenAI(
+            model=settings.OPENAI_MODEL,
+            openai_api_key=os.getenv("OPENAI_API_KEY"),
+            temperature=temperature,
+            max_tokens=max_tokens,
             **kwargs,
         )
     else:  # azure
@@ -97,7 +109,7 @@ class LLMClientConfig:
 
     def __init__(
         self,
-        provider: Optional[Literal["azure", "gemini"]] = None,
+        provider: Optional[Literal["azure", "gemini", "openai"]] = None,
         # Azure OpenAI specific
         deployment_name: Optional[str] = None,
         endpoint: Optional[str] = None,
@@ -105,12 +117,14 @@ class LLMClientConfig:
         api_key: Optional[str] = None,
         # Gemini specific
         google_api_key: Optional[str] = None,
-        model: str = None,
+        model: Optional[str] = None,
+        # OpenAI specific
+        openai_api_key: Optional[str] = None,
+        openai_model: Optional[str] = None,
         # Common parameters
         temperature: float = 0.1,
         max_tokens: int = 4000,
     ):
-        # Auto-detect provider if not specified
         self.provider = (
             provider if provider is not None else _detect_available_provider()
         )
@@ -123,13 +137,21 @@ class LLMClientConfig:
 
         # Gemini configuration
         self.google_api_key = google_api_key or os.getenv("GOOGLE_API_KEY")
-        self.model = model or settings.GEMINI_MODEL
+        self.model = model or (
+            settings.GEMINI_MODEL if self.provider == "gemini" else
+            settings.OPENAI_MODEL if self.provider == "openai" else
+            settings.AZURE_OPENAI_DEPLOYMENT_NAME
+        )
+
+        # OpenAI configuration
+        self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
+        self.openai_model = openai_model or settings.OPENAI_MODEL
 
         # Common parameters
         self.temperature = temperature
         self.max_tokens = max_tokens
 
-    def create_client(self) -> Union[AzureChatOpenAI, ChatGoogleGenerativeAI]:
+    def create_client(self) -> Union[AzureChatOpenAI, ChatGoogleGenerativeAI, ChatOpenAI]:
         """Create client instance based on provider"""
         if self.provider == "gemini":
             return ChatGoogleGenerativeAI(
@@ -137,6 +159,13 @@ class LLMClientConfig:
                 temperature=self.temperature,
                 max_output_tokens=self.max_tokens,
                 google_api_key=self.google_api_key,
+            )
+        elif self.provider == "openai":
+            return ChatOpenAI(
+                model=self.openai_model,
+                openai_api_key=self.openai_api_key,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
             )
         else:  # Azure OpenAI
             return AzureChatOpenAI(
@@ -155,7 +184,7 @@ default_config = LLMClientConfig()
 
 def get_configured_client(
     config: Optional[LLMClientConfig] = None,
-) -> Union[AzureChatOpenAI, ChatGoogleGenerativeAI]:
+) -> Union[AzureChatOpenAI, ChatGoogleGenerativeAI, ChatOpenAI]:
     """
     Get client using configuration
 
@@ -163,7 +192,7 @@ def get_configured_client(
         config: LLM client configuration
 
     Returns:
-        Configured LLM client (Azure OpenAI or Google Gemini)
+        Configured LLM client (Azure OpenAI, Google Gemini, or OpenAI)
     """
     if config is None:
         config = default_config
