@@ -1,6 +1,6 @@
 """
 Application configuration management.
-Handles environment variables, Azure OpenAI settings, and database configuration.
+Handles environment variables, ChatGPT settings, and database configuration.
 """
 
 import os
@@ -40,15 +40,13 @@ class Settings(BaseSettings):
     DEFAULT_INITIAL_CAPITAL: float = 10000.0
     DEFAULT_COMMISSION: float = 0.001
 
-    # Azure OpenAI settings
-    AZURE_OPENAI_API_KEY: Optional[str] = None
-    AZURE_OPENAI_ENDPOINT: Optional[str] = None
-    AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
-    AZURE_OPENAI_DEPLOYMENT_NAME: str = "gpt-4.1"
-
-    # Google Gemini settings
-    GOOGLE_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    # ChatGPT API settings
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_MODEL: str = "gpt-4.1-mini"
+    OPENAI_BASE_URL: Optional[str] = None
+    OPENAI_ORGANIZATION: Optional[str] = None
+    OPENAI_SYSTEM_PROMPT: Optional[str] = None
+    OPENAI_MAX_OUTPUT_TOKENS: Optional[int] = None
 
     # Additional .env settings
     REDIS_URL: Optional[str] = None

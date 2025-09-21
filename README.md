@@ -21,7 +21,7 @@ flowchart TD
     
     %% LLM Strategy Engine
     C --> H[LLM Smart Strategy]
-    H --> I[Azure OpenAI<br/>GPT-4]
+    H --> I[OpenAI ChatGPT<br/>Chat Completions API]
     H --> J[Technical Analysis Engine]
     H --> K[Risk Management Module]
     
@@ -61,15 +61,14 @@ Copy and configure your `.env` file:
 cp .env.example .env
 ```
 
-**Switch LLM Provider**: Edit `.env` and comment/uncomment the API keys:
+**Configure ChatGPT**: Edit `.env` and provide your OpenAI credentials:
 ```env
-# Use Azure OpenAI (default)
-AZURE_OPENAI_API_KEY=your_key
-# GOOGLE_API_KEY=your_key  # comment out
-
-# Use Google Gemini instead
-# AZURE_OPENAI_API_KEY=your_key  # comment out  
-GOOGLE_API_KEY=your_key
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4.1-mini
+# Optional overrides for the ChatGPT Chat Completions API
+# OPENAI_BASE_URL=https://api.openai.com/v1
+# OPENAI_SYSTEM_PROMPT=You are an expert trading assistant.
+# OPENAI_MAX_OUTPUT_TOKENS=4000
 ```
 
 ### Development Mode
